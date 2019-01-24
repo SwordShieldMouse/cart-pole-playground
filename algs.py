@@ -22,3 +22,28 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+
+class DQN(nn.Module):
+    def __init__(self, h, w):
+        super(DQN, self).__init__()
+
+        self.convs = nn.ModuleList([nn.utils.weight_norm(nn.Conv2d(3, 16, kernel_size=5, stride=2)), nn.utils.weight_norm(nn.Conv2d(16, 32, kernel_size=5, stride=2)),
+        nn.utils.weight_norm(nn.Conv2d(32, 32, kernel_size=5, stride=2))])
+        #self.bn3 = nn.BatchNorm2d(32)
+
+        conv_h = h
+        conv_w = w
+        for _ in range(len(convs)):
+            conv_h = get_conv_dim(conv_h)
+            conv_w = get_conv_dim(conv_w)
+
+        linear_input_size = conv_h * conv_w * 32
+        self.head = nn.Linear(linear_input_size, 2) # outputs values of going left or right
+
+    def forward(self, x):
+        for conv in self.convs:
+            x = F.leaky_relu(conv(x))
+        return self.head(x.view(x.size(0), -1))
+
+    def get_conv_dim(size, kernel_size = 5, stride = 2):
+        return (size - kernel_size) // stride + 1
