@@ -37,11 +37,9 @@ for episode in range(episodes):
             break
     # do update after the episode
     T = len(rewards)
-    gammas = [1]
 
-    # calculate cumulative reward
+    gammas = [gamma]
     for i in range(1, T):
-        rewards[i] += rewards[i - 1]
         gammas.append(gamma * gammas[i - 1])
 
     # let autograd see the variables
