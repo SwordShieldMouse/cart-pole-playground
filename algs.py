@@ -56,13 +56,10 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
 
         self.layers = nn.Sequential(
-            nn.Linear(env_dim, 64),
+            nn.Linear(env_dim, 128),
             nn.LeakyReLU(),
-            nn.Linear(64, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 64),
-            nn.LeakyReLU(),
-            nn.Linear(64, action_dim),
+            nn.Dropout(p = 0.6),
+            nn.Linear(128, action_dim),
             nn.LogSoftmax(dim = -1)
         )
 

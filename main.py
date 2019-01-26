@@ -21,10 +21,13 @@ for episode in range(episodes):
         obs = torch.FloatTensor(obs).to(device)
 
         # take an action
-        action = policy(obs).argmax()
+        # this is a deterministic policy
+        logits = policy(obs)
+        c = torch.distributions.Categorical(logits = logits)
+        action = c.sample().item()
 
         # get the next state and reward
-        obs, reward, done, info = env.step(action.item())
+        obs, reward, done, info = env.step(action)
 
         rewards.append(reward)
 
@@ -34,11 +37,15 @@ for episode in range(episodes):
             break
     # do update after the episode
     T = len(rewards)
-    rewards = Variable(torch.FloatTensor(rewards).to(device), requires_grad = True)
     gammas = [1]
-    for i in range(1, T):
-        gammas.append(gamma * rewards[i - 1])
 
+    # calculate cumulative reward
+    for i in range(1, T):
+        rewards[i] += rewards[i - 1]
+        gammas.append(gamma * gammas[i - 1])
+
+    # let autograd see the variables
+    rewards = Variable(torch.FloatTensor(rewards).to(device), requires_grad = True)
     gammas = Variable(torch.FloatTensor(gammas).to(device), requires_grad = True)
 
     # the loss function is just the negative of the value function
