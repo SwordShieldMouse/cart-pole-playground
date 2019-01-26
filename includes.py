@@ -3,8 +3,8 @@ import math
 import random
 import time
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
+#import matplotlib
+#import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
 from PIL import Image

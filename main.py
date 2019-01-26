@@ -21,7 +21,6 @@ for episode in range(episodes):
         obs = torch.FloatTensor(obs).to(device)
 
         # take an action
-        # this is a deterministic policy
         logits = policy(obs)
         c = torch.distributions.Categorical(logits = logits)
         action = c.sample().item()
