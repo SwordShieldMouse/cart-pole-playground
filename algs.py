@@ -27,8 +27,10 @@ class DQN(nn.Module):
     def __init__(self, h, w):
         super(DQN, self).__init__()
 
-        self.convs = nn.ModuleList([nn.utils.weight_norm(nn.Conv2d(3, 16, kernel_size=5, stride=2)), nn.utils.weight_norm(nn.Conv2d(16, 32, kernel_size=5, stride=2)),
-        nn.utils.weight_norm(nn.Conv2d(32, 32, kernel_size=5, stride=2))])
+        self.convs = nn.ModuleList([nn.utils.weight_norm(nn.Conv2d(3, 16, kernel_size=5, stride=2)),
+                                    nn.utils.weight_norm(nn.Conv2d(16, 32, kernel_size=5, stride=2)),
+                                    nn.utils.weight_norm(nn.Conv2d(32, 32, kernel_size=5, stride=2))
+                                    ])
         #self.bn3 = nn.BatchNorm2d(32)
 
         conv_h = h
@@ -38,7 +40,7 @@ class DQN(nn.Module):
             conv_w = get_conv_dim(conv_w)
 
         linear_input_size = conv_h * conv_w * 32
-        self.head = nn.Linear(linear_input_size, 2) # outputs values of going left or right
+        self.head = nn.Linear(linear_input_size, 2)
 
     def forward(self, x):
         for conv in self.convs:
@@ -47,3 +49,22 @@ class DQN(nn.Module):
 
     def get_conv_dim(size, kernel_size = 5, stride = 2):
         return (size - kernel_size) // stride + 1
+
+# for policy gradient
+class Policy(nn.Module):
+    def __init__(self, env_dim, action_dim):
+        super(Policy, self).__init__()
+
+        self.layers = nn.Sequential(
+            nn.Linear(env_dim, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, action_dim),
+            nn.LogSoftmax(dim = -1)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
