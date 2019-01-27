@@ -6,8 +6,10 @@ env = gym.make('CartPole-v0').unwrapped
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 policy = Policy(4, 2).to(device)
+value_fn = Value_Function(4).to(device)
 
-optimizer = optim.Adam(policy.parameters(), lr = 1e-2)
+policy_optimizer = optim.Adam(policy.parameters(), lr = 1e-2)
+value_fn_optimizer = optim.Adam(value_fn.parameters(), lr = 1e-2)
 
 episodes = 1000
 gamma = 0.99
@@ -22,6 +24,7 @@ for episode in range(episodes):
         obs = torch.FloatTensor(obs).to(device)
 
         # take an action
+        # TODO: implement actor-critic
         logits = policy(obs)
         c = torch.distributions.Categorical(logits = logits)
         action = c.sample()
@@ -36,8 +39,12 @@ for episode in range(episodes):
             #print("Episode done after {} timesteps".format(t))
             times.append(t)
             break
+
     # do update after the episode
     T = len(rewards)
+
+    # use a baseline
+    reward_mean = np.mean(rewards)
 
     for ix in range(T):
         rewards[ix] *= gamma ** ix
@@ -50,20 +57,24 @@ for episode in range(episodes):
         R = r + gamma * R
         returns.insert(0, R)
 
+    #print(log_probs.flip(0))
+    log_probs = torch.flip(torch.cumsum(log_probs.flip(0), 0), [0])
+
     # let autograd see the variables
     #rewards = Variable(torch.FloatTensor(rewards).to(device), requires_grad = True)
     #gammas = Variable(torch.FloatTensor(gammas).to(device), requires_grad = True)
     returns = torch.FloatTensor(returns).to(device)
 
-    # the loss function is just the negative of the value function
+    # the loss function is just the negative of the sample of the value function
     #loss = -torch.sum(torch.mul(torch.mul(rewards, gammas), log_probs))
-    loss = -torch.sum(torch.mul(returns, log_probs))
+    #loss = -torch.sum(torch.mul(returns, log_probs))
+    #policy_loss = -(returns[-1]) * torch.sum(log_probs)
+    policy_loss = -torch.sum(torch.mul(returns, log_probs))
 
-    optimizer.zero_grad()
-    loss.backward()
-    #torch.autograd.gradcheck()
-    #print(loss.grad)
-    optimizer.step()
+
+    policy_optimizer.zero_grad()
+    policy_loss.backward()
+    policy_optimizer.step()
 
     if episode % 100 == 0 and episode > 0:
         print("On episode {}".format(episode + 1))

@@ -65,3 +65,19 @@ class Policy(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+
+# for estimate of value function v_\pi(s)
+class Value_Function(nn.Module):
+    def __init__(self, env_dim):
+        super(Value_Function, self).__init__()
+
+        self.layers = nn.Sequential(
+            nn.Linear(env_dim, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 1)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
