@@ -15,3 +15,5 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 from torch.autograd import Variable
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
