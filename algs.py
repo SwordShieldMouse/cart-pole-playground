@@ -159,9 +159,9 @@ def reinforce_baseline(env, policy, value_fn, policy_optimizer, value_fn_optimiz
 def actor_critic(env, policy, value_fn, policy_optimizer, value_fn_optimizer, episodes = 1000, T = 1000, gamma = 0.99):
     for episode in range(episodes):
         obs = env.reset()
-        rewards = []
+        rewards = [0]
         times = []
-        state_history = [obs]
+        state_history = [torch.FloatTensor(obs).to(device)]
         log_probs = Variable(torch.FloatTensor([]).to(device), requires_grad = True)
         for t in range(T):
             env.render()
@@ -176,20 +176,22 @@ def actor_critic(env, policy, value_fn, policy_optimizer, value_fn_optimizer, ep
 
             # get the next state and reward
             obs, reward, done, info = env.step(action.item())
-
+            obs = torch.FloatTensor(obs).to(device)
             # history
             state_history.append(obs)
             rewards.append(reward)
 
-            # do the updates we can do during the episode
-            delta = Variable(rewards[-1] + gamma * value_fn(torch.FloatTensor(state_history[-1])) - value_fn(torch.FloatTensor(state_history[-2])), requires_grad = True)
-
-            policy_loss = -delta * log_probs[-1]
+            # do updates online
+            # policy loss is log pi * sum_{i = 0}^t (r_{i + 1} + gamma * v_{i + 1})
+            G_i = torch.sum(torch.FloatTensor([rewards[i] + gamma * value_fn(state_history[i]) for i in range(1, len(rewards))]).to(device))
+            policy_loss = -G_i * log_probs[-1]
             policy_optimizer.zero_grad()
             policy_loss.backward(retain_graph = True)
             policy_optimizer.step()
 
-            value_fn_loss = delta ** 2
+            # do the TD-error update
+            # alternatively, could also estimate using eligibility traces
+            value_fn_loss = (rewards[-1] + gamma * value_fn(state_history[-1]) - value_fn(state_history[-2])) ** 2
             value_fn_optimizer.zero_grad()
             value_fn_loss.backward()
             value_fn_optimizer.step()
@@ -197,36 +199,6 @@ def actor_critic(env, policy, value_fn, policy_optimizer, value_fn_optimizer, ep
             if done:
                 times.append(t)
                 break
-
-        # do update after the episode
-
-        # use a baseline
-        baselines = Variable(torch.FloatTensor([value_fn(torch.FloatTensor(s).to(device)) for s in state_history]).to(device), requires_grad = True)
-
-        for ix in range(len(rewards)):
-            rewards[ix] *= gamma ** ix
-
-        returns = []
-        #gammas = [gamma ** i for i in range(T)]
-
-        R = 0
-        for r in rewards[::-1]:
-            R = r + gamma * R
-            returns.insert(0, R)
-
-        #print(log_probs.flip(0))
-        log_probs = torch.flip(torch.cumsum(log_probs.flip(0), 0), [0])
-
-        # let autograd see the variables
-        #rewards = Variable(torch.FloatTensor(rewards).to(device), requires_grad = True)
-        #gammas = Variable(torch.FloatTensor(gammas).to(device), requires_grad = True)
-        returns = torch.FloatTensor(returns).to(device)
-
-        # the policy loss function is just the negative of the sample of the value function
-        policy_loss = -torch.sum(torch.mul(returns - baselines.narrow(0, 1, baselines.shape[0] - 1), log_probs))
-        policy_optimizer.zero_grad()
-        policy_loss.backward()
-        policy_optimizer.step()
 
         if episode % 100 == 0 and episode > 0:
             print("On episode {}".format(episode + 1))
